@@ -42,7 +42,12 @@ def populate_table(df_row):
     col_widths = get_column_widths(df_row.to_frame().T, table_width)
 
     for col in df_row.index:
-        pdf.cell(col_widths[col],10,str(df_row[col]),border=1)
+        if isinstance(df_row[col], int):
+            if col == "product_id":
+                pass
+            else:
+                df_row[col] = float(df_row[col])
+        pdf.cell(col_widths[col], 10, str(df_row[col]), border=1)
     pdf.ln()
 
 
@@ -68,6 +73,15 @@ for excel_file in excel_files:
     # Table contents/data
     for i, row in df.iterrows():
         populate_table(row)
+
+    pdf.ln(5)
+
+    total_price = df['total_price'].sum()
+    pdf.set_font("Times","I",12)
+    pdf.cell(100, 10,
+             txt=f"The total price is {total_price:.2f}")
+
+
 
 
     pdf.output(f"pdf/{filename}.pdf")
