@@ -5,35 +5,48 @@ from pathlib import Path
 
 excel_files = glob.glob("invoices/*.xlsx")
 
+# Setting column sizes
+def get_column_widths(df, page_width):
+    # Assign relative "weights" to each column
+    weights = {
+        "product_id": 1,
+        "product_name": 2,   # Wider
+        "amount_purchased": 1,
+        "price_per_unit": 1,
+        "total_price": 1
+    }
+    total_weight = sum(weights.values())
+
+    # Convert weights into actual width in mm
+    col_widths = {
+        col: (weights[col]/total_weight) * page_width for col in df.columns
+    }
+    return col_widths
+
+
 def table_header(data):
     pdf.set_font("Times", style="B", size=13)
     table_width = pdf.w - 20
-    no_of_col = len(data.columns)
-    col_width = table_width/no_of_col
+    col_widths = get_column_widths(data,table_width)
 
-    columns = [col.replace("_"," ") for col in data.columns]
+    for col in data.columns:
+        header = col.replace("_"," ").title()
+        pdf.cell(col_widths[col],10,header,border=1,align="C")
 
-    for header in columns:
-        header_name = header.title()
-        pdf.cell(col_width,10,header_name,border=1,align="C")
-
-    pdf.ln(1)
+    pdf.ln()
 
 
-def populate_table(y_pos,df_row):
+def populate_table(df_row):
     pdf.set_font("Times", style="", size=10)
     table_width = pdf.w - 20
-    no_of_col = len(df_row)
-    col_width = table_width/no_of_col
+    col_widths = get_column_widths(df_row.to_frame().T, table_width)
 
-    pdf.set_y(y_pos)
-    pdf.cell(col_width,10,str(df_row["product_id"]),border=1)
-    pdf.cell(col_width, 10, str(df_row["product_name"]), border=1)
-    pdf.cell(col_width, 10, str(df_row["amount_purchased"]), border=1)
-    pdf.cell(col_width, 10, str(df_row["price_per_unit"]), border=1)
-    pdf.cell(col_width, 10, str(df_row["total_price"]), border=1,ln=1)
+    for col in df_row.index:
+        pdf.cell(col_widths[col],10,str(df_row[col]),border=1)
+    pdf.ln()
 
 
+# Iterate each Excel file
 for excel_file in excel_files:
     pdf = FPDF(orientation="L", unit="mm", format="letter")
     excel_file = Path(excel_file)
@@ -48,15 +61,13 @@ for excel_file in excel_files:
     pdf.ln(5)
 
     df = pd.read_excel(excel_file, sheet_name="Sheet 1")
+
     # Table headers
     table_header(df)
 
     # Table contents/data
-    header_pos = pdf.get_y()
-    pdf.set_y(header_pos+9)
-
     for i, row in df.iterrows():
-        populate_table(pdf.get_y(),row)
+        populate_table(row)
 
 
     pdf.output(f"pdf/{filename}.pdf")
